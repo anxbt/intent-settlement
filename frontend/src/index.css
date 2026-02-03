@@ -1,0 +1,154 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Intent Pay — Premium Dark Mode Design System */
+
+@layer base {
+  :root {
+    /* Premium Dark Palette */
+    --background: 240 6% 4%; /* #0a0a0b - Deep charcoal */
+    --foreground: 40 14% 96%; /* #faf9f7 - Warm off-white */
+
+    --card: 240 5% 8%; /* #141416 - Elevated charcoal */
+    --card-foreground: 40 14% 96%;
+
+    --popover: 240 5% 8%;
+    --popover-foreground: 40 14% 96%;
+
+    /* Champagne Gold Accent */
+    --primary: 43 56% 52%; /* #d4af37 - Champagne gold */
+    --primary-foreground: 240 6% 4%;
+
+    --secondary: 240 4% 14%; /* #2a2a2e - Warm gray border */
+    --secondary-foreground: 40 14% 96%;
+
+    --muted: 240 4% 14%;
+    --muted-foreground: 0 0% 64%; /* #a3a3a3 - Warm gray text */
+
+    --accent: 39 32% 93%; /* #f5f0e8 - Soft cream */
+    --accent-foreground: 240 6% 4%;
+
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 40 14% 96%;
+
+    /* Status Colors */
+    --success: 142 71% 45%; /* #22c55e - Elegant green */
+    --success-foreground: 240 6% 4%;
+    
+    --warning: 38 92% 50%; /* #f59e0b - Warm amber */
+    --warning-foreground: 240 6% 4%;
+
+    --border: 240 4% 14%;
+    --input: 240 4% 14%;
+    --ring: 43 56% 52%;
+
+    --radius: 0.5rem;
+
+    /* Sidebar tokens */
+    --sidebar-background: 240 5% 6%;
+    --sidebar-foreground: 40 14% 96%;
+    --sidebar-primary: 43 56% 52%;
+    --sidebar-primary-foreground: 240 6% 4%;
+    --sidebar-accent: 240 4% 14%;
+    --sidebar-accent-foreground: 40 14% 96%;
+    --sidebar-border: 240 4% 14%;
+    --sidebar-ring: 43 56% 52%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  html {
+    scroll-behavior: smooth;
+  }
+
+  body {
+    @apply bg-background text-foreground antialiased;
+    font-family: 'Inter', system-ui, sans-serif;
+  }
+
+  /* Premium Typography */
+  h1, h2, h3, h4, h5, h6 {
+    font-family: 'Playfair Display', Georgia, serif;
+    @apply tracking-tight;
+  }
+
+  /* Elegant focus states */
+  *:focus-visible {
+    @apply outline-none ring-2 ring-primary/50 ring-offset-2 ring-offset-background;
+  }
+}
+
+@layer components {
+  /* Premium button hover glow */
+  .btn-glow {
+    @apply relative overflow-hidden;
+  }
+  
+  .btn-glow::after {
+    content: '';
+    @apply absolute inset-0 opacity-0 transition-opacity duration-300;
+    background: radial-gradient(circle at center, hsl(var(--primary) / 0.3) 0%, transparent 70%);
+  }
+  
+  .btn-glow:hover::after {
+    @apply opacity-100;
+  }
+
+  /* Subtle fade-in animation */
+  .fade-in-up {
+    animation: fadeInUp 0.6s ease-out forwards;
+    opacity: 0;
+  }
+
+  @keyframes fadeInUp {
+    from {
+      opacity: 0;
+      transform: translateY(20px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  /* Staggered animation delays */
+  .delay-100 { animation-delay: 0.1s; }
+  .delay-200 { animation-delay: 0.2s; }
+  .delay-300 { animation-delay: 0.3s; }
+  .delay-400 { animation-delay: 0.4s; }
+  .delay-500 { animation-delay: 0.5s; }
+
+  /* Glass morphism for elevated surfaces */
+  .glass {
+    @apply bg-card/80 backdrop-blur-xl border border-border/50;
+  }
+
+  /* Premium card styling */
+  .premium-card {
+    @apply bg-card border border-border/50 rounded-lg p-8;
+    box-shadow: 0 4px 24px -4px rgba(0, 0, 0, 0.3);
+  }
+
+  /* Gold text gradient */
+  .text-gold-gradient {
+    @apply bg-clip-text text-transparent;
+    background-image: linear-gradient(135deg, hsl(43 56% 52%) 0%, hsl(39 32% 73%) 100%);
+  }
+}
+
+@layer utilities {
+  /* Smooth hover transitions */
+  .hover-lift {
+    @apply transition-all duration-300;
+  }
+  
+  .hover-lift:hover {
+    @apply -translate-y-0.5;
+    box-shadow: 0 8px 32px -8px rgba(0, 0, 0, 0.4);
+  }
+}
