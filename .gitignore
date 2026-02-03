@@ -1,0 +1,11 @@
+# Foundry
+cache/
+out/
+lib/
+
+# IDE
+.DS_Store
+.vscode/
+*.swp
+*.swo
+*~
