@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" width="32" height="32">
+  <!-- Dark background -->
+  <rect width="32" height="32" rx="6" fill="#0a0a0b"/>
+  <!-- Outer ring (muted) -->
+  <circle cx="16" cy="16" r="10" fill="none" stroke="#2a2a2e" stroke-width="2"/>
+  <!-- Inner ring (primary gold) -->
+  <circle cx="16" cy="16" r="6" fill="none" stroke="#d4af37" stroke-width="2"/>
+  <!-- Center dot (primary gold) -->
+  <circle cx="16" cy="16" r="2.5" fill="#d4af37"/>
+</svg>

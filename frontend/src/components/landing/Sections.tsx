@@ -35,8 +35,8 @@ export function HeroSection() {
           </Button>
           
           <Button asChild variant="gold-outline" size="xl">
-            <Link to="/intent/example-fulfilled">
-              View Example Flow
+            <Link to="/demo">
+              View Demo
             </Link>
           </Button>
         </div>
@@ -197,15 +197,15 @@ export function FinalCTASection() {
         
         <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
           <Button asChild variant="gold" size="xl">
-            <Link to="/create-intent">
-              Create Payment Intent
+            <Link to="/demo">
+              View Interactive Demo
               <ArrowRight className="ml-2 h-5 w-5" />
             </Link>
           </Button>
           
           <Button asChild variant="gold-outline" size="xl">
-            <Link to="/intent/example-created">
-              View Example Intent
+            <Link to="/create-intent">
+              Create Payment Intent
             </Link>
           </Button>
         </div>
