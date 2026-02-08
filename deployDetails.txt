@@ -1,0 +1,76 @@
+== Return ==
+escrow: contract IntentEscrow 0x4Bf1d41e3ebCA8497d120560B081b52448d888c8
+
+== Logs ==
+  ============================================
+     IntentEscrow Deployment - Base Mainnet
+  ============================================
+  Deployer: 0xBa26B79dEF9FC3E66B92ed8C4cF09652787a405E
+  Chain ID: 8453
+  
+  ============================================
+     DEPLOYMENT SUCCESSFUL
+  ============================================
+  IntentEscrow deployed at: 0x4Bf1d41e3ebCA8497d120560B081b52448d888c8
+  
+  Next steps:
+  1. Verify on BaseScan:
+     forge verify-contract 0x4Bf1d41e3ebCA8497d120560B081b52448d888c8 IntentEscrow --chain base
+  
+  2. Update frontend .env:
+     VITE_INTENT_ESCROW_ADDRESS= 0x4Bf1d41e3ebCA8497d120560B081b52448d888c8
+  ============================================
+
+## Setting up 1 EVM.
+
+==========================
+
+Chain 8453
+
+Estimated gas price: 0.011469376 gwei
+
+Estimated total gas used for script: 1128467
+
+Estimated amount required: 0.000012942812326592 ETH
+
+==========================
+⠄ Sequence #1 on base | Waiting for pending transactions
+    ⠠ [Pending] 0xc68aefb6bd4b6ba6cfb9cb5341ea53bab52e98e33dfa61a71df61d37480be6f4
+
+##### base
+✅  [Success] Hash: 0xc68aefb6bd4b6ba6cfb9cb5341ea53bab52e98e33dfa61a71df61d37480be6f4
+Contract Address: 0x4Bf1d41e3ebCA8497d120560B081b52448d888c8
+Block: 41784199
+Paid: 0.000005400960516464 ETH (868052 gas * 0.006221932 gwei)
+
+✅ Sequence #1 on base | Total Paid: 0.000005400960516464 ETH (868052 gas * avg 0.006221932 gwei)
+                                                                                                         
+
+==========================
+
+ONCHAIN EXECUTION COMPLETE & SUCCESSFUL.
+##
+Start verification for (1) contracts
+Start verifying contract `0x4Bf1d41e3ebCA8497d120560B081b52448d888c8` deployed on base
+EVM version: prague
+Compiler version: 0.8.30
+Optimizations:    200
+
+Submitting verification for [src/IntentEscrow.sol:IntentEscrow] 0x4Bf1d41e3ebCA8497d120560B081b52448d888c8.
+Submitted contract for verification:
+        Response: `OK`
+        GUID: `gprcd6en4hipqkggfcbpvfqtxay1pyxh5iddzx8rqxyfp4n8yk`
+        URL: https://basescan.org/address/0x4bf1d41e3ebca8497d120560b081b52448d888c8
+Contract verification status:
+Response: `NOTOK`
+Details: `Pending in queue`
+Warning: Verification is still pending...; waiting 15 seconds before trying again (7 tries remaining)
+Contract verification status:
+Response: `OK`
+Details: `Pass - Verified`
+Contract successfully verified
+All (1) contracts were verified!
+
+Transactions saved to: /Users/rishav/Desktop/eth-online/broadcast/DeployEscrow.s.sol/8453/run-latest.json
+
+Sensitive values saved to: /Users/rishav/Desktop/eth-online/cache/DeployEscrow.s.sol/8453/run-latest.json
