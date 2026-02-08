@@ -1,7 +1,7 @@
 # Foundry
 cache/
 out/
-lib/
+/lib/
 
 # IDE
 .DS_Store
