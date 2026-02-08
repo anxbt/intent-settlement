@@ -20,7 +20,9 @@ import {
   useWaitForTransactionReceipt,
   useWatchContractEvent,
 } from "wagmi";
-import { decodeEventLog } from "viem";
+import { decodeEventLog, createPublicClient, http } from "viem";
+import { waitForTransactionReceipt } from "viem/actions";
+import { base } from "viem/chains";
 import {
   INTENT_ESCROW_ABI,
   INTENT_ESCROW_ADDRESS,
@@ -604,10 +606,6 @@ export function useLockFunds() {
         });
 
         // Use viem's readContract directly
-        const { createPublicClient, http } = await import("viem");
-        const { base } = await import("viem/chains");
-        const { waitForTransactionReceipt: waitForTx } = await import("viem/actions");
-        
         const client = createPublicClient({
           chain: base,
           transport: http(),
@@ -650,7 +648,7 @@ export function useLockFunds() {
 
           // Wait for approval confirmation
           setProcessingStep("Waiting for approval confirmation...");
-          await waitForTx(client, { hash: approvalHash });
+          await waitForTransactionReceipt(client, { hash: approvalHash });
 
           logSuccess("lockFunds:approvalConfirmed", {
             token: intentData.token,

@@ -23,7 +23,7 @@ const Index = () => {
       <footer className="py-8 border-t border-border">
         <div className="container mx-auto px-6 lg:px-8 text-center">
           <p className="text-sm text-muted-foreground">
-            Built for ETHGlobal HackMoney — Intent-Based Cross-Chain Payments
+            Built for ETHGlobal HackMoney — Intent-Based Settlement with Cross-Chain Funding Support
           </p>
         </div>
       </footer>

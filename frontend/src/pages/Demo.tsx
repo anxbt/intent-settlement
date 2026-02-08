@@ -1,14 +1,14 @@
 /**
  * Demo Page - Interactive Workflow Showcase for Judges
  * 
- * This page demonstrates the complete intent-based cross-chain payment flow:
+ * This page demonstrates the intent-based settlement flow:
  * 1. Receiver creates an intent specifying desired outcome
- * 2. Payer locks funds from any supported chain
- * 3. Protocol executes cross-chain routing via LI.FI
+ * 2. Payer locks funds on the settlement chain (Base)
+ * 3. Cross-chain funding can be handled by external tools like LI.FI
  * 4. Funds settle to receiver OR return to payer on failure
  */
 
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { Header } from "@/components/Header";
 import { VideoBackground } from "@/components/VideoBackground";
@@ -48,11 +48,11 @@ type DemoPath = "success" | "failure";
 
 const stepInfo = {
   0: { title: "Start", description: "Begin the demo" },
-  1: { title: "Create Intent", description: "Receiver specifies desired outcome" },
+  1: { title: "Create Intent", description: "Receiver defines settlement terms" },
   2: { title: "Share Link", description: "Payment link sent to payer" },
-  3: { title: "Lock Funds", description: "Payer commits funds from any chain" },
-  4: { title: "Cross-Chain Execution", description: "LI.FI routes funds to destination" },
-  5: { title: "Settlement", description: "Funds released or returned" },
+  3: { title: "Cross-Chain Funding", description: "External funding executor (e.g., LI.FI)" },
+  4: { title: "Lock in Escrow", description: "Funds secured in smart contract" },
+  5: { title: "Explicit Settlement", description: "Receiver confirms or payer reclaims" },
 };
 
 export default function Demo() {
@@ -60,6 +60,7 @@ export default function Demo() {
   const [demoPath, setDemoPath] = useState<DemoPath>("success");
   const [isAutoPlaying, setIsAutoPlaying] = useState(false);
   const [copiedContract, setCopiedContract] = useState(false);
+  const intervalRef = useRef<NodeJS.Timeout | null>(null);
 
   const handleCopyContract = () => {
     navigator.clipboard.writeText(DEPLOYED_CONTRACT);
@@ -79,28 +80,51 @@ export default function Demo() {
     }
   };
 
-  const resetDemo = () => {
-    setCurrentStep(0);
+  const stopAutoPlay = () => {
+    if (intervalRef.current) {
+      clearInterval(intervalRef.current);
+      intervalRef.current = null;
+    }
     setIsAutoPlaying(false);
   };
 
+  const goToStep = (step: number) => {
+    setCurrentStep(step as DemoStep);
+    if (isAutoPlaying) {
+      stopAutoPlay();
+    }
+  };
+
+  const resetDemo = () => {
+    stopAutoPlay();
+    setCurrentStep(0);
+  };
+
   const toggleAutoPlay = () => {
-    if (!isAutoPlaying && currentStep < 5) {
+    if (!isAutoPlaying) {
+      // If at the end, restart
+      if (currentStep >= 5) {
+        setCurrentStep(0);
+      }
+      
       setIsAutoPlaying(true);
-      const interval = setInterval(() => {
+      intervalRef.current = setInterval(() => {
         setCurrentStep((prev) => {
           if (prev >= 5) {
-            clearInterval(interval);
-            setIsAutoPlaying(false);
+            stopAutoPlay();
             return prev;
           }
           return (prev + 1) as DemoStep;
         });
       }, 2500);
     } else {
-      setIsAutoPlaying(false);
+      stopAutoPlay();
     }
   };
+
+  useEffect(() => {
+    return () => stopAutoPlay();
+  }, []);
 
   return (
     <div className="min-h-screen bg-background relative">
@@ -121,11 +145,11 @@ export default function Demo() {
               ETHGlobal HackMoney Submission
             </Badge>
             <h1 className="font-serif text-4xl md:text-5xl lg:text-6xl mb-4 text-foreground">
-              Intent-Based Cross-Chain Payments
+              Intent-Based Settlement Protocol
             </h1>
             <p className="text-lg md:text-xl text-muted-foreground max-w-3xl mx-auto">
-              A protocol where payments are defined by <span className="text-primary font-semibold">outcomes, not steps</span>. 
-              Funds move only when the intent is fulfilled — otherwise they return safely.
+              Cross-chain funding with <span className="text-primary font-semibold">explicit settlement</span>. 
+              Smart contracts enforce payment terms and protect funds until intentionally released.
             </p>
           </div>
 
@@ -224,8 +248,9 @@ export default function Demo() {
                 {[1, 2, 3, 4, 5].map((step) => (
                   <div key={step} className="flex items-center">
                     <div
+                      onClick={() => goToStep(step)}
                       className={cn(
-                        "flex flex-col items-center min-w-[100px]",
+                        "flex flex-col items-center min-w-[100px] cursor-pointer hover:scale-105 transition-transform",
                         currentStep >= step ? "opacity-100" : "opacity-40"
                       )}
                     >
@@ -297,18 +322,18 @@ export default function Demo() {
             <div className="grid md:grid-cols-3 gap-6">
               <FeatureCard
                 icon={Shield}
-                title="Atomic Settlement"
-                description="Payments either complete fully or fail safely. No partial states, no stuck funds."
+                title="Settlement Guarantee"
+                description="Smart contracts enforce payment terms. Funds are protected until explicitly released."
               />
               <FeatureCard
                 icon={Globe}
-                title="Chain Agnostic"
-                description="Pay from any supported chain. LI.FI handles routing to the destination."
+                title="Cross-Chain Funding"
+                description="External funding executors like LI.FI can bridge to the settlement chain. Settlement occurs explicitly on-chain."
               />
               <FeatureCard
                 icon={RefreshCw}
-                title="Safe Failure"
-                description="If execution fails after expiry, funds automatically return to the payer."
+                title="Explicit Control"
+                description="Recipients explicitly confirm settlement, or payers reclaim funds after expiry."
               />
             </div>
           </div>
@@ -351,7 +376,7 @@ export default function Demo() {
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
               <TechCard name="Foundry" description="Smart Contract Development" />
               <TechCard name="Base" description="L2 Deployment" />
-              <TechCard name="LI.FI" description="Cross-Chain Routing" />
+              <TechCard name="LI.FI" description="Cross-Chain Funding Executor" />
               <TechCard name="RainbowKit" description="Wallet Connection" />
             </div>
           </div>
@@ -521,7 +546,7 @@ function DemoStepContent({ step, path }: { step: DemoStep; path: DemoPath }) {
           </h3>
           <p className="text-muted-foreground mb-4">
             Bob has <span className="text-primary font-semibold">USDC on Arbitrum</span> but the intent 
-            requires USDC on Base. No problem — LI.FI will handle the routing!
+            requires USDC on Base. External tools like LI.FI can handle cross-chain funding.
           </p>
           <div className="flex items-center gap-3 text-sm">
             <Badge variant="outline" className="border-blue-500/50">Arbitrum</Badge>
@@ -550,30 +575,26 @@ function DemoStepContent({ step, path }: { step: DemoStep; path: DemoPath }) {
             <div className="h-10 w-10 rounded-full bg-yellow-500/10 flex items-center justify-center">
               <Zap className="h-5 w-5 text-yellow-500" />
             </div>
-            <span className="text-sm text-yellow-400 font-medium">LI.FI Router</span>
+            <span className="text-sm text-blue-400 font-medium">Cross-Chain Funding Executor</span>
           </div>
           <h3 className="font-serif text-xl mb-3 text-foreground">
-            4. Cross-Chain Execution
+            4. Cross-Chain Funding
           </h3>
           <p className="text-muted-foreground mb-4">
-            LI.FI finds the optimal route and executes the cross-chain transfer:
+            External funding executors like LI.FI can bridge funds to the settlement chain:
           </p>
           <div className="space-y-2">
             <div className="flex items-center gap-2 text-sm">
-              <div className="h-2 w-2 rounded-full bg-green-500" />
-              <span>Best route calculated</span>
+              <div className="h-2 w-2 rounded-full bg-blue-500" />
+              <span>Route calculation available</span>
             </div>
             <div className="flex items-center gap-2 text-sm">
-              <div className="h-2 w-2 rounded-full bg-green-500" />
-              <span>Bridge: Stargate</span>
+              <div className="h-2 w-2 rounded-full bg-blue-500" />
+              <span>Bridge options: Stargate, others</span>
             </div>
             <div className="flex items-center gap-2 text-sm">
-              <div className="h-2 w-2 rounded-full bg-green-500" />
-              <span>Estimated time: ~2 minutes</span>
-            </div>
-            <div className="flex items-center gap-2 text-sm">
-              <div className="h-2 w-2 rounded-full bg-yellow-500 animate-pulse" />
-              <span>Executing...</span>
+              <div className="h-2 w-2 rounded-full bg-blue-500" />
+              <span>Settlement occurs on Base</span>
             </div>
           </div>
         </div>
@@ -583,9 +604,9 @@ function DemoStepContent({ step, path }: { step: DemoStep; path: DemoPath }) {
               Arbitrum
             </Badge>
             <div className="flex flex-col items-center">
-              <ArrowDown className="h-5 w-5 text-yellow-500 animate-bounce" />
-              <span className="text-xs text-yellow-400 my-1">LI.FI Bridge</span>
-              <ArrowDown className="h-5 w-5 text-yellow-500 animate-bounce" />
+              <ArrowDown className="h-5 w-5 text-blue-500" />
+              <span className="text-xs text-blue-400 my-1">External Bridge</span>
+              <ArrowDown className="h-5 w-5 text-blue-500" />
             </div>
             <Badge variant="outline" className="border-blue-500/50 text-blue-400">
               Base
@@ -607,8 +628,7 @@ function DemoStepContent({ step, path }: { step: DemoStep; path: DemoPath }) {
             5. Intent Fulfilled ✓
           </h3>
           <p className="text-muted-foreground mb-4">
-            Cross-chain execution completed successfully. 
-            Alice calls <code className="text-primary">fulfillIntent()</code> to release funds.
+            With funds available on Base, Alice calls <code className="text-primary">fulfillIntent()</code> to explicitly release funds.
           </p>
           <div className="space-y-2">
             <div className="flex items-center gap-2 text-sm text-green-400">

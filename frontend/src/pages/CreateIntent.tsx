@@ -2,10 +2,11 @@
  * CreateIntent Page
  *
  * Intent settlement flow:
- * 1) User (Receiver) specifies desired token, amount, and expiry
+ * 1) User (Receiver) specifies settlement terms: token, amount, and expiry
  * 2) Contract creates intent with state = CREATED
  * 3) User shares intent ID with payer
- * 4) Payer locks funds via LI.FI or direct transfer
+ * 4) Payer funds directly on Base or uses separate cross-chain tools
+ * 5) Receiver explicitly confirms settlement to release funds
  *
  * ⚠️ LOGGING: All user actions are logged for debugging real money transactions
  */
@@ -163,7 +164,7 @@ export default function CreateIntent() {
               Create Payment Intent
             </h1>
             <p className="text-muted-foreground text-lg">
-              Define exactly what you expect to receive. The intent becomes a binding commitment.
+              Define your settlement terms. Create a binding payment commitment with explicit fulfillment.
             </p>
           </div>
 
@@ -230,7 +231,7 @@ export default function CreateIntent() {
                 max="1440"
               />
               <p className="text-xs text-muted-foreground">
-                Intent will expire after this many minutes. Funds can be reclaimed if not fulfilled.
+                Settlement deadline. Funds can be reclaimed by payer if not explicitly fulfilled by this time.
               </p>
             </div>
 
@@ -247,7 +248,7 @@ export default function CreateIntent() {
                 placeholder="0x..."
               />
               <p className="text-xs text-muted-foreground">
-                Address that will receive funds when intent is fulfilled.
+                Address that will receive funds when settlement is explicitly confirmed.
               </p>
             </div>
 

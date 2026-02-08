@@ -75,28 +75,28 @@ const statusConfig: Record<
     color: "text-blue-400",
     bgColor: "bg-blue-500/10",
     icon: Clock,
-    description: "Awaiting payment commitment",
+    description: "Awaiting funding from payer",
     label: "CREATED",
   },
   [IntentState.LOCKED]: {
     color: "text-yellow-400",
     bgColor: "bg-yellow-500/10",
     icon: Target,
-    description: "Funds locked, awaiting fulfillment",
+    description: "Funds secured in escrow, awaiting explicit settlement",
     label: "LOCKED",
   },
   [IntentState.FULFILLED]: {
     color: "text-green-400",
     bgColor: "bg-green-500/10",
     icon: CheckCircle2,
-    description: "Intent successfully fulfilled",
+    description: "Settlement confirmed and funds released",
     label: "FULFILLED",
   },
   [IntentState.FAILED]: {
     color: "text-red-400",
     bgColor: "bg-red-500/10",
     icon: XCircle,
-    description: "Execution failed — funds can be reclaimed",
+    description: "Settlement failed — funds available for reclaim",
     label: "FAILED",
   },
   [IntentState.REFUNDED]: {
@@ -106,6 +106,21 @@ const statusConfig: Record<
     description: "Funds returned to payer",
     label: "REFUNDED",
   },
+};
+
+// Get config for current state with expiry override
+const getStatusConfig = (intent: any, isExpired: boolean) => {
+  // Override with expired state if intent is expired and still active
+  if (isExpired && (intent.state === IntentState.CREATED || intent.state === IntentState.LOCKED)) {
+    return {
+      color: "text-red-400",
+      bgColor: "bg-red-500/10",
+      icon: AlertCircle,
+      description: "Intent has expired and should be marked as failed",
+      label: "EXPIRED",
+    };
+  }
+  return statusConfig[intent.state];
 };
 
 // Token label lookup
@@ -321,7 +336,7 @@ export default function IntentStatus() {
   const isExpired = timeLeft === 0;
 
   // Get config for current state
-  const config = intent ? statusConfig[intent.state] : statusConfig[IntentState.CREATED];
+  const config = intent ? getStatusConfig(intent, isExpired) : statusConfig[IntentState.CREATED];
   const StatusIcon = config.icon;
 
   const isProcessing = isFulfilling || isConfirmingFulfill || isReclaiming || isConfirmingReclaim || isMarking || isConfirmingMark;
@@ -498,48 +513,88 @@ export default function IntentStatus() {
                 {/* CREATED: Share payment link */}
                 {intent.state === IntentState.CREATED && (
                   <>
-                    <Button
-                      onClick={handleShareLink}
-                      variant="gold"
-                      size="xl"
-                      className="w-full"
-                    >
-                      {copiedLink ? (
-                        <>
-                          <CheckCircle2 className="mr-2 h-5 w-5" />
-                          Link Copied!
-                        </>
-                      ) : (
-                        <>
-                          <Share2 className="mr-2 h-5 w-5" />
-                          Share Payment Link
-                        </>
-                      )}
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="lg"
-                      className="w-full"
-                      onClick={() => navigate(`/pay/${id}`)}
-                    >
-                      Pay This Intent
-                    </Button>
-                    <p className="text-center text-sm text-muted-foreground">
-                      Share this link with the payer to receive funds
-                    </p>
+                    {isExpired ? (
+                      <>
+                        <div className="p-4 bg-red-500/10 border border-red-500/20 rounded-lg mb-4">
+                          <div className="flex items-start gap-3">
+                            <AlertCircle className="h-5 w-5 text-red-400 flex-shrink-0 mt-0.5" />
+                            <div className="flex-1">
+                              <p className="font-medium text-red-100 mb-1">Intent Expired</p>
+                              <p className="text-sm text-red-200">
+                                This intent has expired and can no longer be paid. It should be marked as failed.
+                              </p>
+                            </div>
+                          </div>
+                        </div>
+                        <Button
+                          onClick={handleMarkFailed}
+                          variant="outline"
+                          size="lg"
+                          className="w-full border-red-500/50 text-red-400 hover:bg-red-500/10"
+                          disabled={!isConnected || !isOnBase || isProcessing}
+                        >
+                          {isMarking || isConfirmingMark ? (
+                            <span className="flex items-center gap-2">
+                              <Loader2 className="h-4 w-4 animate-spin" />
+                              Marking Failed...
+                            </span>
+                          ) : (
+                            <>
+                              <XCircle className="mr-2 h-5 w-5" />
+                              Mark as Failed (Expired)
+                            </>
+                          )}
+                        </Button>
+                        <p className="text-center text-sm text-muted-foreground">
+                          Intent expired - mark as failed to enable fund recovery
+                        </p>
+                      </>
+                    ) : (
+                      <>
+                        <Button
+                          onClick={handleShareLink}
+                          variant="gold"
+                          size="xl"
+                          className="w-full"
+                        >
+                          {copiedLink ? (
+                            <>
+                              <CheckCircle2 className="mr-2 h-5 w-5" />
+                              Link Copied!
+                            </>
+                          ) : (
+                            <>
+                              <Share2 className="mr-2 h-5 w-5" />
+                              Share Payment Link
+                            </>
+                          )}
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="lg"
+                          className="w-full"
+                          onClick={() => navigate(`/pay/${id}`)}
+                        >
+                          Pay This Intent
+                        </Button>
+                        <p className="text-center text-sm text-muted-foreground">
+                          Share this link with the payer to receive funds
+                        </p>
+                      </>
+                    )}
                   </>
                 )}
 
                 {/* LOCKED: Fulfill (receiver only) or Mark Failed (after expiry) */}
                 {intent.state === IntentState.LOCKED && (
                   <>
-                    {isReceiver && (
+                    {isReceiver && !isExpired && (
                       <Button
                         onClick={handleFulfill}
                         variant="gold"
                         size="xl"
                         className="w-full"
-                        disabled={!isConnected || !isOnBase || isProcessing}
+                        disabled={!isConnected || !isOnBase || isProcessing || isExpired}
                       >
                         {isFulfilling || isConfirmingFulfill ? (
                           <span className="flex items-center gap-2">
@@ -549,39 +604,59 @@ export default function IntentStatus() {
                         ) : (
                           <>
                             <CheckCircle2 className="mr-2 h-5 w-5" />
-                            Fulfill Intent
+                            Release Funds (Fulfill Intent)
                           </>
                         )}
                       </Button>
                     )}
 
                     {isExpired && (
-                      <Button
-                        onClick={handleMarkFailed}
-                        variant="outline"
-                        size="lg"
-                        className="w-full border-red-500/50 text-red-400 hover:bg-red-500/10"
-                        disabled={!isConnected || !isOnBase || isProcessing}
-                      >
-                        {isMarking || isConfirmingMark ? (
-                          <span className="flex items-center gap-2">
-                            <Loader2 className="h-4 w-4 animate-spin" />
-                            Marking Failed...
-                          </span>
-                        ) : (
-                          <>
-                            <XCircle className="mr-2 h-5 w-5" />
-                            Mark as Failed (Expired)
-                          </>
-                        )}
-                      </Button>
+                      <>
+                        <div className="p-4 bg-yellow-500/10 border border-yellow-500/20 rounded-lg mb-4">
+                          <div className="flex items-start gap-3">
+                            <AlertCircle className="h-5 w-5 text-yellow-400 flex-shrink-0 mt-0.5" />
+                            <div className="flex-1">
+                              <p className="font-medium text-yellow-100 mb-1">Intent Expired</p>
+                              <p className="text-sm text-yellow-200">
+                                This intent has expired. Please mark it as failed to enable fund recovery.
+                              </p>
+                            </div>
+                          </div>
+                        </div>
+                        <Button
+                          onClick={handleMarkFailed}
+                          variant="outline"
+                          size="lg"
+                          className="w-full border-red-500/50 text-red-400 hover:bg-red-500/10"
+                          disabled={!isConnected || !isOnBase || isProcessing}
+                        >
+                          {isMarking || isConfirmingMark ? (
+                            <span className="flex items-center gap-2">
+                              <Loader2 className="h-4 w-4 animate-spin" />
+                              Marking Failed...
+                            </span>
+                          ) : (
+                            <>
+                              <XCircle className="mr-2 h-5 w-5" />
+                              Mark as Failed (Expired)
+                            </>
+                          )}
+                        </Button>
+                      </>
+                    )}
+
+                    {isReceiver && !isExpired && (
+                      <div className="text-center text-sm text-muted-foreground space-y-1">
+                        <p>This action releases funds from escrow to the receiver.</p>
+                        <p>In this demo, fulfillment is a manual on-chain action.</p>
+                      </div>
                     )}
 
                     <p className="text-center text-sm text-muted-foreground">
-                      {isReceiver
+                      {isReceiver && !isExpired
                         ? "Confirm receipt to release funds"
                         : isExpired
-                        ? "Intent expired - can be marked as failed"
+                        ? "Intent expired - mark as failed to enable fund recovery"
                         : "Waiting for receiver to fulfill"}
                     </p>
                   </>

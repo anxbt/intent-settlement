@@ -11,6 +11,8 @@
 import { useState, useCallback } from "react";
 import { useAccount, useChainId, useWalletClient, usePublicClient } from "wagmi";
 import type { WalletClient, PublicClient } from "viem";
+import { createPublicClient, http, erc20Abi } from "viem";
+import { arbitrum, base } from "viem/chains";
 import {
   fetchRoutes as fetchLiFiRoutes,
   formatRouteEstimate,
@@ -221,6 +223,8 @@ export function useLiFi() {
       setIsExecuting(true);
       setExecutionStatus("Preparing transaction...");
 
+      let lastTxHash: string | undefined;
+
       try {
         // For each step, we need to execute the transaction
         for (let i = 0; i < route.steps.length; i++) {
@@ -248,6 +252,77 @@ export function useLiFi() {
 
           const { to, data, value, gasLimit } = step.transactionRequest;
 
+          // Check if we need to approve tokens (for ERC20 transfers)
+          const fromToken = step.action.fromToken;
+          const isNativeToken = fromToken.address === "0x0000000000000000000000000000000000000000";
+          
+          if (!isNativeToken && wc.account?.address) {
+            // Create a public client for the SOURCE chain (where the token lives)
+            const sourceChain = step.action.fromChainId === SUPPORTED_CHAINS.ARBITRUM ? arbitrum : base;
+            const sourceClient = createPublicClient({
+              chain: sourceChain,
+              transport: http(),
+            });
+
+            logInfo("executeRoute:checkingApproval", {
+              token: fromToken.address,
+              spender: to,
+              amount: step.action.fromAmount,
+              sourceChainId: step.action.fromChainId,
+            });
+
+            setExecutionStatus("Checking token approval...");
+
+            // Check current allowance on the SOURCE chain
+            const allowance = await sourceClient.readContract({
+              address: fromToken.address as `0x${string}`,
+              abi: erc20Abi,
+              functionName: "allowance",
+              args: [wc.account.address, to as `0x${string}`],
+            });
+
+            const requiredAmount = BigInt(step.action.fromAmount);
+
+            logInfo("executeRoute:allowanceCheck", {
+              currentAllowance: allowance.toString(),
+              requiredAmount: requiredAmount.toString(),
+              needsApproval: allowance < requiredAmount,
+            });
+
+            if (allowance < requiredAmount) {
+              setExecutionStatus("Approving tokens...");
+              
+              logInfo("executeRoute:requestingApproval", {
+                token: fromToken.address,
+                spender: to,
+                amount: requiredAmount.toString(),
+              });
+
+              // Request approval
+              const approvalHash = await wc.writeContract({
+                address: fromToken.address as `0x${string}`,
+                abi: erc20Abi,
+                functionName: "approve",
+                args: [to as `0x${string}`, requiredAmount],
+              });
+
+              logInfo("executeRoute:approvalSent", {
+                transactionHash: approvalHash,
+                token: fromToken.symbol,
+              });
+
+              setExecutionStatus("Waiting for approval confirmation...");
+
+              // Wait for approval confirmation on the SOURCE chain
+              await sourceClient.waitForTransactionReceipt({ hash: approvalHash });
+
+              logSuccess("executeRoute:approvalConfirmed", {
+                transactionHash: approvalHash,
+                token: fromToken.symbol,
+              });
+            }
+          }
+
           logBridge("tx_sent", {
             stepIndex: i + 1,
             tool: step.tool,
@@ -267,6 +342,8 @@ export function useLiFi() {
             gas: BigInt(gasLimit || "200000"),
           });
 
+          lastTxHash = hash;
+
           logInfo("executeRoute:txSubmitted", {
             transactionHash: hash,
             tool: step.tool,
@@ -274,8 +351,14 @@ export function useLiFi() {
 
           setExecutionStatus("Waiting for confirmation...");
 
-          // Wait for confirmation
-          const receipt = await pc.waitForTransactionReceipt({ hash });
+          // Wait for confirmation on the SOURCE chain
+          const sourceChain = step.action.fromChainId === SUPPORTED_CHAINS.ARBITRUM ? arbitrum : base;
+          const sourceClient = createPublicClient({
+            chain: sourceChain,
+            transport: http(),
+          });
+          
+          const receipt = await sourceClient.waitForTransactionReceipt({ hash });
 
           logBridge("confirmed", {
             transactionHash: hash,
@@ -289,10 +372,11 @@ export function useLiFi() {
         logSuccess("executeRoute:complete", {
           routeId: route.id,
           stepsExecuted: route.steps.length,
+          lastTxHash,
         });
 
         setExecutionStatus(null);
-        return { success: true };
+        return { success: true, txHash: lastTxHash };
       } catch (err) {
         const errorMsg = err instanceof Error ? err.message : "Execution failed";
         logBridge("failed", {

@@ -1,14 +1,14 @@
 /**
  * PayIntent Page
  *
- * Flow:
+ * Same-chain funding flow (Base only):
  * 1) Payer enters intent ID or navigates from link
- * 2) Page fetches intent details from contract
- * 3) Payer selects source token/chain
- * 4) LI.FI SDK fetches optimal route to destination
- * 5) Payer executes LI.FI swap + bridge to escrow contract
- * 6) Contract's lockFunds is called to lock the payment
+ * 2) Page fetches settlement terms from contract
+ * 3) Payer must have required tokens on Base to fund directly
+ * 4) Funds are locked in escrow contract on Base
+ * 5) Receiver must explicitly confirm settlement to release funds
  *
+ * Note: Cross-chain funding via LI.FI is demonstrated separately
  * ⚠️ LOGGING: All user actions are logged for debugging real money transactions
  */
 
@@ -33,7 +33,8 @@ import { ArrowRight, Clock, Target, Loader2, AlertCircle, ExternalLink } from "l
 import { NetworkWarning } from "@/components/WalletButton";
 import { useIntent, useLockFunds, IntentState } from "@/hooks/useIntentContract";
 import { useLiFi, SUPPORTED_CHAINS, SUPPORTED_TOKENS } from "@/hooks/useLiFi";
-import { INTENT_ESCROW_ADDRESS } from "@/lib/contract";
+import { INTENT_ESCROW_ADDRESS, CONTRACT_CHAIN_ID } from "@/lib/contract";
+import { useToast } from "@/hooks/use-toast";
 
 // Page-level logging
 const LOG_PREFIX = "[PayIntent]";
@@ -90,8 +91,10 @@ export default function PayIntent() {
   const [searchParams] = useSearchParams();
   const { address, isConnected } = useAccount();
   const chainId = useChainId();
+  const isOnBase = chainId === CONTRACT_CHAIN_ID;
   const publicClient = usePublicClient();
   const { data: walletClient } = useWalletClient();
+  const { toast } = useToast();
 
   // Intent ID state
   const [intentIdInput, setIntentIdInput] = useState(id || searchParams.get("id") || "");
@@ -114,22 +117,26 @@ export default function PayIntent() {
   // Lock funds hook
   const { lockFunds, isPending: isLocking, isConfirming: isConfirmingLock, error: lockError, processingStep } = useLockFunds();
 
-  // Selected source token
+  // Selected source token (defaulted to first Base token)
   const [selectedSourceKey, setSelectedSourceKey] = useState("0");
   const selectedSource = sourceTokens[parseInt(selectedSourceKey)];
   
-  // User's payment amount for cross-chain (can be different from intent amount)
+  // LI.FI cross-chain functionality (preserved for demonstration and prize submission)
+  // Not used in core demo path, but available for testing and showcase
   const [paymentAmount, setPaymentAmount] = useState("");
   const isCrossChain = selectedSource.chainId !== SUPPORTED_CHAINS.BASE || 
                        selectedSource.address.toLowerCase() !== intent?.token.toLowerCase();
-
-  // Set default payment amount when source changes or intent loads
-  useEffect(() => {
-    if (intent && isCrossChain) {
-      // Default to the intent amount for initial quote
-      setPaymentAmount(formatUnits(intent.amount, 6));
-    }
-  }, [intent, isCrossChain]);
+  
+  // LI.FI route fetching and execution (callable and demonstrable)
+  const { 
+    routes, 
+    isLoading: isLoadingRoutes, 
+    error: routeError, 
+    fetchRoutes,
+    executeRoute,
+    isExecuting,
+    executionStatus 
+  } = useLiFi();
 
   // Log source token change
   useEffect(() => {
@@ -141,18 +148,8 @@ export default function PayIntent() {
     });
   }, [selectedSourceKey, selectedSource]);
 
-  // LI.FI route fetching
-  const { 
-    routes, 
-    isLoading: isLoadingRoutes, 
-    error: routeError, 
-    fetchRoutes,
-    executeRoute,
-    isExecuting,
-    executionStatus 
-  } = useLiFi();
-
-  // Fetch routes when user inputs payment amount or changes source
+  // LI.FI route fetching (preserved for demonstration - not core demo path)
+  // Automatically fetch routes when cross-chain options are selected
   useEffect(() => {
     if (intent && selectedSource && address && paymentAmount && isCrossChain) {
       logPage("routeFetchCheck", {
@@ -163,6 +160,7 @@ export default function PayIntent() {
         destToken: intent.token,
         userPaymentAmount: paymentAmount,
         targetAmount: intent.amount.toString(),
+        note: "LI.FI routing available for demonstration",
       });
 
       // Parse user's payment amount
@@ -187,7 +185,7 @@ export default function PayIntent() {
     }
   }, [intent, selectedSource, address, paymentAmount, isCrossChain, fetchRoutes, intentIdInput]);
 
-  // Format expiry time
+  // Format expiry time and check if expired
   const formatExpiry = (timestamp: bigint) => {
     const now = BigInt(Math.floor(Date.now() / 1000));
     const remaining = timestamp - now;
@@ -198,8 +196,16 @@ export default function PayIntent() {
     return `${hours} hour${hours > 1 ? "s" : ""} ${minutes % 60} min`;
   };
 
+  // Check if intent is expired
+  const isExpired = intent ? Number(intent.expiry) < Math.floor(Date.now() / 1000) : false;
+
   // Get state badge color
   const getStateBadge = (state: IntentState) => {
+    // Override with EXPIRED if intent is expired
+    if (isExpired && (state === IntentState.CREATED || state === IntentState.LOCKED)) {
+      return <Badge variant="outline" className="border-red-500 text-red-500">EXPIRED</Badge>;
+    }
+
     switch (state) {
       case IntentState.CREATED:
         return <Badge variant="outline" className="border-blue-500 text-blue-500">CREATED</Badge>;
@@ -216,15 +222,16 @@ export default function PayIntent() {
     }
   };
 
-  // Handle payment execution
+  // Handle payment execution - same-chain primary, LI.FI demonstration available
   const handlePay = async () => {
-    if (!intent || !address || !walletClient || !publicClient) {
+    if (!intent || !address || !walletClient || !publicClient || !isOnBase) {
       logPage("payBlocked", {
-        reason: "Missing required data",
+        reason: "Missing required data or not on Base",
         hasIntent: !!intent,
         hasAddress: !!address,
         hasWalletClient: !!walletClient,
         hasPublicClient: !!publicClient,
+        isOnBase,
       });
       return;
     }
@@ -236,6 +243,7 @@ export default function PayIntent() {
     logPage("payInitiated", {
       intentId: intentIdInput,
       isSameChainSameToken,
+      isCrossChain,
       sourceToken: selectedSource.label,
       sourceChainId: selectedSource.chainId,
       destToken: getTokenLabel(intent.token),
@@ -243,15 +251,15 @@ export default function PayIntent() {
       amountFormatted: formatUnits(intent.amount, 6),
       payer: address,
       receiver: intent.receiver,
-      hasRoutes: routes.length > 0,
+      isLiFiDemo: isCrossChain,
     });
 
     try {
       if (isSameChainSameToken) {
-        // Direct lock on Base - user must already have tokens in wallet
+        // Direct lock on Base - primary demo path
         logPage("directLock:start", { 
           intentId: intentIdInput,
-          note: "User must have tokens in wallet for direct lock",
+          note: "Primary demo path: direct lock on Base",
           requiredToken: intent.token,
           requiredAmount: intent.amount.toString(),
         });
@@ -262,10 +270,11 @@ export default function PayIntent() {
           intentId: intentIdInput,
           txHash: lockResult,
         });
-      } else if (routes && routes.length > 0) {
-        // Execute LI.FI route to bridge funds
-        logPage("crossChain:start", {
+      } else if (isCrossChain && routes && routes.length > 0) {
+        // LI.FI demonstration path - preserved for prize submission
+        logPage("lifiDemo:start", {
           intentId: intentIdInput,
+          note: "LI.FI prize submission demonstration",
           route: {
             fromChain: routes[0].fromChainId,
             toChain: routes[0].toChainId,
@@ -279,33 +288,32 @@ export default function PayIntent() {
 
         const bridgeResult = await executeRoute(routes[0], walletClient, publicClient);
         
-        logPage("crossChain:bridgeComplete", {
+        if (!bridgeResult.success) {
+           throw new Error(bridgeResult.error || "LI.FI demo execution failed");
+        }
+
+        logPage("lifiDemo:success", {
           intentId: intentIdInput,
           bridgeResult,
-          note: "Tokens bridged to payer wallet, now locking funds",
+          txHash: bridgeResult.txHash,
+          note: "LI.FI demonstration completed successfully",
         });
 
-        // After successful bridge to payer's wallet, lock funds from payer to escrow
-        logPage("crossChain:lockingFunds", { 
-          intentId: intentIdInput,
-          note: "Transferring bridged tokens from payer to escrow",
-        });
+        // Show success message for LI.FI demonstration
+        alert(`LI.FI Demo Successful!\n\nTransaction: ${bridgeResult.txHash}\n\nThis demonstrates LI.FI integration for the prize submission.\nNote: This is separate from the core intent settlement protocol.`);
         
-        const lockResult = await lockFunds(intentId!, address, intent);
-        
-        logPage("crossChain:lockSuccess", {
-          intentId: intentIdInput,
-          txHash: lockResult,
-        });
+        return; // Don't navigate away for demo
       } else {
         logPage("payFailed", {
-          reason: "No routes available and not same chain/token",
+          reason: "No valid payment path available",
+          isSameChainSameToken,
+          isCrossChain,
           hasRoutes: routes?.length || 0,
         });
         return;
       }
       
-      // Navigate to intent status after success
+      // Navigate to intent status after successful same-chain payment
       logPage("payComplete", {
         intentId: intentIdInput,
         navigatingTo: `/intent/${intentIdInput}`,
@@ -314,6 +322,7 @@ export default function PayIntent() {
     } catch (err: any) {
       logPage("payError", {
         intentId: intentIdInput,
+        isCrossChain,
         error: err?.message || String(err),
         errorCode: err?.code,
         errorName: err?.name,
@@ -342,7 +351,7 @@ export default function PayIntent() {
               Pay Intent
             </h1>
             <p className="text-muted-foreground text-lg">
-              Fund a payment intent using any supported token. LI.FI handles the bridging.
+              Fund settlement using tokens on Base. LI.FI cross-chain funding is available separately.
             </p>
           </div>
 
@@ -438,37 +447,53 @@ export default function PayIntent() {
               {/* Payment Options - only show for CREATED state */}
               {intent.state === IntentState.CREATED && (
                 <div className="premium-card space-y-6">
-                  {/* Info box for cross-chain payments */}
-                  {isCrossChain && (
-                    <div className="p-4 bg-primary/10 border border-primary/20 rounded-lg text-sm">
+                  {/* Expired notification */}
+                  {isExpired && (
+                    <div className="p-4 bg-red-500/10 border border-red-500/20 rounded-lg">
                       <div className="flex items-start gap-3">
-                        <AlertCircle className="h-5 w-5 text-primary flex-shrink-0 mt-0.5" />
-                        <div>
-                          <p className="font-medium mb-1 text-foreground">Cross-Chain Payment</p>
-                          <p className="text-muted-foreground">
-                            Pay with tokens from {selectedSource.chainId === SUPPORTED_CHAINS.ARBITRUM ? "Arbitrum" : "another chain"}. 
-                            Enter the amount you want to pay, and LI.FI will bridge it to Base.
+                        <AlertCircle className="h-5 w-5 text-red-400 flex-shrink-0 mt-0.5" />
+                        <div className="flex-1">
+                          <p className="font-medium text-red-100 mb-1">Intent Expired</p>
+                          <p className="text-sm text-red-200 mb-2">
+                            This intent has expired and can no longer be paid. It should be marked as failed.
                           </p>
                         </div>
                       </div>
                     </div>
                   )}
+
+                  {/* Network requirement notification */}
+                  {!isOnBase && !isExpired && (
+                    <div className="p-4 bg-yellow-500/10 border border-yellow-500/20 rounded-lg">
+                      <div className="flex items-start gap-3">
+                        <AlertCircle className="h-5 w-5 text-yellow-400 flex-shrink-0 mt-0.5" />
+                        <div className="flex-1">
+                          <p className="font-medium text-yellow-100 mb-1">Network Required: Base</p>
+                          <p className="text-sm text-yellow-200">
+                            Cross-chain funding is demonstrated separately. Please switch to Base to complete this intent.
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
                   
-                  {/* Info box about direct payment requirements */}
-                  {!isCrossChain && (
+                  {/* Info box about direct payment requirements - only show when on Base */}
+                  {isOnBase && (
                     <div className="p-4 bg-blue-500/10 border border-blue-500/20 rounded-lg text-sm">
                       <div className="flex items-start gap-3">
                         <AlertCircle className="h-5 w-5 text-blue-400 flex-shrink-0 mt-0.5" />
                         <div className="text-blue-100">
-                          <p className="font-medium mb-1">Direct Payment</p>
+                          <p className="font-medium mb-1">Direct Funding on Base</p>
                           <p className="text-blue-200">
-                            You must already have {formatUnits(intent.amount, 6)} {getTokenLabel(intent.token)} in your wallet on Base chain to complete this payment.
+                            You must already have {formatUnits(intent.amount, 6)} {getTokenLabel(intent.token)} in your wallet on Base to fund this settlement directly.
                           </p>
                         </div>
                       </div>
                     </div>
                   )}
                   
+                  {/* Payment source selection - Base tokens for primary path, all tokens for demonstration */}
                   <div className="space-y-3">
                     <Label className="text-foreground">Pay With</Label>
                     <Select value={selectedSourceKey} onValueChange={setSelectedSourceKey}>
@@ -476,22 +501,59 @@ export default function PayIntent() {
                         <SelectValue placeholder="Select payment asset" />
                       </SelectTrigger>
                       <SelectContent className="bg-card border-border">
-                        {sourceTokens.map((token, idx) => (
-                          <SelectItem key={idx} value={idx.toString()}>
-                            <span className="flex items-center gap-2">
-                              <span className="text-primary">{token.icon}</span>
-                              {token.label}
-                            </span>
-                          </SelectItem>
-                        ))}
+                        {/* Base tokens (primary demo path) */}
+                        <optgroup label="Base (Primary Demo Path)">
+                          {sourceTokens
+                            .filter(token => token.chainId === CONTRACT_CHAIN_ID)
+                            .map((token, idx) => {
+                              const originalIdx = sourceTokens.findIndex(t => t.chainId === token.chainId && t.address === token.address);
+                              return (
+                                <SelectItem key={`base-${idx}`} value={originalIdx.toString()}>
+                                  <span className="flex items-center gap-2">
+                                    <span className="text-primary">{token.icon}</span>
+                                    {token.label}
+                                  </span>
+                                </SelectItem>
+                              );
+                            })
+                          }
+                        </optgroup>
+                        {/* Cross-chain tokens (LI.FI demonstration) */}
+                        <optgroup label="Cross-Chain (LI.FI Demo)">
+                          {sourceTokens
+                            .filter(token => token.chainId !== CONTRACT_CHAIN_ID)
+                            .map((token, idx) => {
+                              const originalIdx = sourceTokens.findIndex(t => t.chainId === token.chainId && t.address === token.address);
+                              return (
+                                <SelectItem key={`cross-${idx}`} value={originalIdx.toString()}>
+                                  <span className="flex items-center gap-2">
+                                    <span className="text-primary">{token.icon}</span>
+                                    {token.label} <span className="text-xs text-muted-foreground">(Demo)</span>
+                                  </span>
+                                </SelectItem>
+                              );
+                            })
+                          }
+                        </optgroup>
                       </SelectContent>
                     </Select>
+                    {isCrossChain && (
+                      <p className="text-xs text-blue-400">
+                        Cross-chain option selected - LI.FI integration will be demonstrated
+                      </p>
+                    )}
+                    
+                    {!isCrossChain && (
+                      <p className="text-xs text-muted-foreground">
+                        Select Arbitrum tokens above to demonstrate LI.FI cross-chain routing
+                      </p>
+                    )}
                   </div>
 
-                  {/* Payment amount input for cross-chain */}
-                  {isCrossChain && (
+                  {/* Payment amount input for cross-chain LI.FI demonstration */}
+                  {isCrossChain && isOnBase && (
                     <div className="space-y-3">
-                      <Label className="text-foreground">Amount to Pay</Label>
+                      <Label className="text-foreground">Amount to Pay (LI.FI Demo)</Label>
                       <Input
                         type="number"
                         value={paymentAmount}
@@ -501,77 +563,58 @@ export default function PayIntent() {
                         step="0.01"
                         min="0"
                       />
-                      <p className="text-xs text-muted-foreground">
-                        Enter how much you want to pay from {selectedSource.label}. 
+                      <p className="text-xs text-blue-400">
+                        Enter amount to demonstrate LI.FI cross-chain routing. 
                         Target: {formatUnits(intent.amount, 6)} {getTokenLabel(intent.token)} on Base
                       </p>
                     </div>
                   )}
 
-                  {/* Route Info */}
-                  {isLoadingRoutes && (
-                    <div className="p-4 bg-muted/50 rounded-lg flex items-center gap-3">
+                  {/* LI.FI Route Info (Demonstration) */}
+                  {isCrossChain && isOnBase && isLoadingRoutes && (
+                    <div className="p-4 bg-blue-500/10 border border-blue-500/20 rounded-lg flex items-center gap-3">
                       <Loader2 className="h-4 w-4 animate-spin" />
-                      <span className="text-sm text-muted-foreground">Finding best route...</span>
+                      <span className="text-sm text-blue-400">LI.FI: Finding optimal route...</span>
                     </div>
                   )}
 
-                  {selectedRoute && (
+                  {isCrossChain && isOnBase && selectedRoute && (
                     <div className="space-y-3">
-                      <div className="p-4 bg-primary/10 border border-primary/20 rounded-lg space-y-2">
+                      <div className="p-4 bg-blue-500/10 border border-blue-500/20 rounded-lg space-y-2">
                         <div className="flex items-center justify-between">
-                          <span className="text-sm text-muted-foreground">You pay</span>
-                          <span className="text-sm font-medium">{paymentAmount} {selectedSource.label.split(" ")[0]}</span>
+                          <span className="text-sm font-medium text-blue-200">LI.FI Route Demo</span>
+                          <span className="text-xs text-blue-400">Prize Submission</span>
                         </div>
                         <div className="flex items-center justify-between">
-                          <span className="text-sm text-muted-foreground">You receive (estimated)</span>
-                          <span className="text-sm font-medium">{formatUnits(BigInt(selectedRoute.toAmount), 6)} {getTokenLabel(intent.token)}</span>
+                          <span className="text-sm text-blue-300">You pay</span>
+                          <span className="text-sm font-medium text-blue-100">{paymentAmount} {selectedSource.label.split(" ")[0]}</span>
                         </div>
                         <div className="flex items-center justify-between">
-                          <span className="text-sm text-muted-foreground">Target amount</span>
-                          <span className="text-sm font-medium">{formatUnits(intent.amount, 6)} {getTokenLabel(intent.token)}</span>
+                          <span className="text-sm text-blue-300">You receive (estimated)</span>
+                          <span className="text-sm font-medium text-blue-100">{formatUnits(BigInt(selectedRoute.toAmount), 6)} {getTokenLabel(intent.token)}</span>
                         </div>
-                        <div className="border-t border-border/50 my-2 pt-2 space-y-2">
-                          <div className="flex items-center justify-between">
-                            <span className="text-sm text-muted-foreground">Route via</span>
-                            <span className="text-sm font-medium">{selectedRoute.steps.map(s => s.tool).join(" → ")}</span>
-                          </div>
-                          <div className="flex items-center justify-between">
-                            <span className="text-sm text-muted-foreground">Estimated gas</span>
-                            <span className="text-sm font-medium">${selectedRoute.gasCostUSD || "~"}</span>
-                          </div>
-                          <div className="flex items-center justify-between">
-                            <span className="text-sm text-muted-foreground">Time</span>
-                            <span className="text-sm font-medium">~{Math.ceil((selectedRoute.steps.reduce((acc, s) => acc + (s.estimate?.executionDuration || 0), 0)) / 60)} min</span>
-                          </div>
+                        <div className="flex items-center justify-between">
+                          <span className="text-sm text-blue-300">Route via</span>
+                          <span className="text-sm font-medium text-blue-100">{selectedRoute.steps.map(s => s.tool).join(" → ")}</span>
                         </div>
                       </div>
-                      {BigInt(selectedRoute.toAmount) < intent.amount && (
-                        <div className="p-3 bg-yellow-500/10 border border-yellow-500/20 rounded-lg text-sm text-yellow-200">
-                          ⚠️ The bridged amount will be less than the target. You may need to increase your payment amount or accept partial fulfillment.
-                        </div>
-                      )}
+                      <p className="text-xs text-blue-400">
+                        ℹ️ This demonstrates LI.FI integration but is separate from the core intent settlement protocol
+                      </p>
                     </div>
                   )}
 
-                  {routeError && (
-                    <div className="p-4 bg-destructive/10 border border-destructive/20 rounded-lg text-sm text-destructive">
-                      {routeError}
+                  {isCrossChain && isOnBase && routeError && (
+                    <div className="p-4 bg-yellow-500/10 border border-yellow-500/20 rounded-lg text-sm">
+                      <span className="text-yellow-400">LI.FI Demo: {routeError}</span>
                     </div>
                   )}
 
-                  {executionStatus && (
+                  {isCrossChain && isOnBase && executionStatus && (
                     <div className="p-4 bg-blue-500/10 border border-blue-500/20 rounded-lg text-sm">
-                      <span className="text-blue-400">{executionStatus}</span>
+                      <span className="text-blue-400">LI.FI Status: {executionStatus}</span>
                     </div>
                   )}
-
-                  {processingStep && (
-                    <div className="p-4 bg-blue-500/10 border border-blue-500/20 rounded-lg text-sm">
-                      <span className="text-blue-400">{processingStep}</span>
-                    </div>
-                  )}
-
                   {lockError && (
                     <div className="p-4 bg-destructive/10 border border-destructive/20 rounded-lg text-sm text-destructive">
                       {lockError.message}
@@ -584,15 +627,21 @@ export default function PayIntent() {
                       variant="gold"
                       size="xl"
                       className="w-full"
-                      disabled={!isConnected || isProcessing || (isCrossChain && (!paymentAmount || isLoadingRoutes || !routes.length))}
+                      disabled={!isConnected || !isOnBase || isProcessing || isExpired || (isCrossChain && (!paymentAmount || isLoadingRoutes || !routes.length))}
                     >
                       {isProcessing ? (
                         <span className="flex items-center gap-2">
                           <Loader2 className="h-4 w-4 animate-spin" />
-                          {processingStep || (isExecuting ? "Bridging via LI.FI..." : "Processing...")}
+                          {isExecuting ? "LI.FI Demo..." : processingStep || "Processing..."}
                         </span>
                       ) : !isConnected ? (
                         "Connect Wallet"
+                      ) : !isOnBase ? (
+                        "Switch to Base Network"
+                      ) : isExpired ? (
+                        "Intent Expired"
+                      ) : isCrossChain ? (
+                        "Demonstrate LI.FI Integration"
                       ) : (
                         <>
                           Lock Payment
@@ -601,13 +650,20 @@ export default function PayIntent() {
                       )}
                     </Button>
 
-                    <p className="text-center text-sm text-muted-foreground mt-4">
-                      {!isCrossChain
-                        ? "Direct payment on Base - you must have the tokens in your wallet"
-                        : paymentAmount && routes.length > 0
-                        ? `LI.FI will bridge ${paymentAmount} ${selectedSource.label.split(" ")[0]} to Base`
-                        : "Enter payment amount to see LI.FI routing options"}
-                    </p>
+                    {isOnBase && !isExpired && (
+                      <p className="text-center text-sm text-muted-foreground mt-4">
+                        {isCrossChain 
+                          ? "LI.FI demonstration for prize submission - separate from core protocol"
+                          : "Direct payment on Base - you must have the tokens in your wallet"
+                        }
+                      </p>
+                    )}
+
+                    {isExpired && (
+                      <p className="text-center text-sm text-red-400 mt-4">
+                        This intent has expired and cannot be paid
+                      </p>
+                    )}
                   </div>
                 </div>
               )}

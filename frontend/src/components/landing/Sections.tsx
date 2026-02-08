@@ -17,13 +17,13 @@ export function HeroSection() {
       {/* Content */}
       <div className="relative z-10 container mx-auto px-6 lg:px-8 py-32 text-center">
         <h1 className="fade-in-up font-serif text-5xl md:text-6xl lg:text-7xl font-semibold text-foreground mb-8 max-w-4xl mx-auto leading-tight">
-          Cross-Chain Payments,{" "}
-          <span className="text-gold-gradient">Settled by Intent</span>
+          Intent-Based Settlement with{" "}
+          <span className="text-gold-gradient">Cross-Chain Funding</span>
         </h1>
         
         <p className="fade-in-up delay-100 text-lg md:text-xl text-muted-foreground max-w-2xl mx-auto mb-12 leading-relaxed">
-          Define the exact outcome you want. Funds move only if the intent is 
-          fulfilled — otherwise they return safely.
+          Define payment terms up-front. Cross-chain funding executors like LI.FI available separately, with 
+          settlement correctness enforced on-chain.
         </p>
 
         <div className="fade-in-up delay-200 flex flex-col sm:flex-row items-center justify-center gap-4">
@@ -56,18 +56,18 @@ export function WhySection() {
   const reasons = [
     {
       icon: Zap,
-      title: "Outcome Over Steps",
-      description: "Users specify the desired end state. The protocol figures out how to get there across any chain."
+      title: "Cross-Chain Funding",
+      description: "External funding executors like LI.FI can bridge to settlement chain. Explicit settlement happens on the destination chain."
     },
     {
       icon: Shield,
-      title: "No Partial Success",
-      description: "Payments settle completely or fail safely. No stuck funds, no partial transfers, no uncertainty."
+      title: "Explicit Settlement",
+      description: "Fulfillment is intentional and verifiable. Smart contracts enforce settlement correctness on-chain."
     },
     {
       icon: RefreshCw,
-      title: "Reduced Trust",
-      description: "Protocol logic enforces guarantees. Neither party needs to trust the other — just the intent."
+      title: "On-Chain Guarantees",
+      description: "Settlement terms are enforced by smart contracts. Funds are protected until explicitly released."
     }
   ];
 
@@ -109,18 +109,18 @@ export function HowItWorksSection() {
     },
     {
       number: "02",
-      title: "Lock Funds",
-      description: "The payer locks their assets against the intent, securing the commitment."
+      title: "Cross-Chain Funding",
+      description: "Payer can use external funding executors like LI.FI to bridge funds to the settlement chain."
     },
     {
       number: "03",
-      title: "Execute Cross-Chain",
-      description: "LI.FI orchestrates the optimal route across chains to fulfill the intent."
+      title: "Lock in Escrow",
+      description: "Funds are locked in a smart contract escrow, securing the payment commitment."
     },
     {
       number: "04",
-      title: "Settle or Reclaim",
-      description: "Funds release on success, or return to the payer if execution fails."
+      title: "Explicit Settlement",
+      description: "Receiver explicitly confirms fulfillment to release funds, or payer reclaims if failed."
     }
   ];
 
@@ -167,8 +167,8 @@ export function FailureSection() {
           
           <p className="text-xl text-muted-foreground leading-relaxed mb-8">
             Traditional cross-chain transfers can leave funds in limbo. 
-            With intent-based payments, a failed execution isn't a disaster — 
-            it's a clearly defined state with a safe resolution.
+            With intent-based settlement, failure is an explicit state — 
+            funds are either properly settled or safely reclaimable.
           </p>
           
           <div className="premium-card inline-block">
@@ -192,7 +192,7 @@ export function FinalCTASection() {
         </h2>
         
         <p className="text-xl text-muted-foreground mb-12 max-w-2xl mx-auto">
-          Experience the future of cross-chain payments with guaranteed outcomes.
+          Experience intent-based settlement with explicit control and on-chain guarantees.
         </p>
         
         <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
