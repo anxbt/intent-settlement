@@ -73,24 +73,26 @@ High-level components:
 - **Routing Layer (LI.FI)**  
   Optional cross-chain funding abstraction
 
-### Architecture Diagram
+### Architecture (simplified)
 
 ```mermaid
 flowchart LR
-    Receiver -->|Creates Intent| Frontend
-    Frontend -->|createIntent| IntentEscrow
+  Receiver -->|createIntent| Frontend
+  Frontend -->|createIntent| IntentEscrow
 
-    Payer -->|Lock Funds| Frontend
-    Frontend -->|lockFunds| IntentEscrow
+  Payer -->|lockFunds| Frontend
+  Frontend -->|lockFunds| IntentEscrow
 
-    IntentEscrow -->|LOCKED| Frontend
+  Receiver -->|fulfillIntent| Frontend
+  Frontend -->|fulfillIntent| IntentEscrow
 
-    Receiver -->|Fulfill| Frontend
-    Frontend -->|fulfillIntent| IntentEscrow
-    IntentEscrow -->|Funds Released| Receiver
+  IntentEscrow -->|release funds| Receiver
+  IntentEscrow -->|refund| Payer
+```
 
-    IntentEscrow -->|Expired| Payer
-    5. Intent Lifecycle
+---
+
+## 5. Intent lifecycle
 
 An intent progresses through explicit states:
 	1.	CREATED – Intent exists, no funds locked
