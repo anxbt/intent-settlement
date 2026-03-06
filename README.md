@@ -4,24 +4,26 @@ A production-grade payment settlement system where users define the **exact outc
 
 This project focuses on **correctness, failure safety, and explicit state transitions**, rather than UI polish or automation hype.
 
+[![View on BaseScan](https://img.shields.io/badge/BaseScan-View%20Contract-0052FF?style=flat&logo=base&logoColor=white)](https://basescan.org/address/0x4Bf1d41e3ebCA8497d120560B081b52448d888c8#code) [![Demo on YouTube](https://img.shields.io/badge/YouTube-Demo%20Video-FF0000?style=flat&logo=youtube&logoColor=white)](https://youtu.be/dXE-1h0Tf1I)
+
 ---
 
 ## Index
 
-1. Overview  
-2. Core Idea  
-3. Why This Matters  
-4. System Architecture  
-5. Intent Lifecycle  
-6. State Machine  
-7. Smart Contract Design  
-8. Frontend Design  
-9. Cross-Chain Funding (LI.FI)  
-10. Demo Flow  
-11. What This Is (and Is Not)  
-12. Tech Stack  
-13. Security & Guarantees  
-14. Future Improvements  
+1. [Overview](#1-overview)  
+2. [Core Idea](#2-core-idea)  
+3. [Why This Matters](#3-why-this-matters)  
+4. [System Architecture](#4-system-architecture)  
+5. [Intent Lifecycle](#5-intent-lifecycle)  
+6. [State Machine](#6-state-machine)  
+7. [Smart Contract Design](#7-smart-contract-design)  
+8. [Frontend Design](#8-frontend-design)  
+9. [Cross-Chain Funding (LI.FI)](#9-cross-chain-funding-lifi)  
+10. [Demo Flow](#10-demo-flow-same-chain-deterministic)  
+11. [What This Is (and Is Not)](#11-what-this-is-and-is-not)  
+12. [Tech Stack](#12-tech-stack)  
+13. [Security & Guarantees](#13-security--guarantees)  
+14. [Future Improvements](#14-future-improvements)  
 
 ---
 
@@ -105,17 +107,21 @@ Each transition is enforced by the smart contract.
 
 ⸻
 
-6. State Machi
+## 6. State Machine
+
+```mermaid
 stateDiagram-v2
     CREATED --> LOCKED: lockFunds
     LOCKED --> FULFILLED: fulfillIntent
     LOCKED --> FAILED: expiry reached
     FAILED --> REFUNDED: reclaimFunds
-    There are no implicit transitions and no automatic execution.
+```
+
+There are no implicit transitions and no automatic execution.
 
 ⸻
 
-7. Smart Contract Design
+## 7. Smart Contract Design
 
 IntentEscrow.sol (Base):
 
@@ -133,7 +139,7 @@ Key properties:
 
 ⸻
 
-8. Frontend Design
+## 8. Frontend Design
 
 The frontend is intentionally simple and state-driven.
 
@@ -152,7 +158,7 @@ Styling:
 
 ⸻
 
-9. Cross-Chain Funding (LI.FI)
+## 9. Cross-Chain Funding (LI.FI)
 
 LI.FI is integrated as a cross-chain funding abstraction, not as a settlement engine.
 
@@ -172,7 +178,9 @@ Relevant integration points:
 
 ⸻
 
-10. Demo Flow (Same-Chain, Deterministic)
+## 10. Demo Flow (Same-Chain, Deterministic)
+
+[![Watch the demo](https://img.youtube.com/vi/dXE-1h0Tf1I/maxresdefault.jpg)](https://youtu.be/dXE-1h0Tf1I)
 
 Primary demo path:
 	1.	Receiver creates intent on Base
@@ -189,7 +197,7 @@ Blocked by design:
 
 ⸻
 
-11. What This Is (and Is Not)
+## 11. What This Is (and Is Not)
 
 This is:
 	•	An intent-based settlement primitive
@@ -203,7 +211,7 @@ This is not:
 
 ⸻
 
-12. Tech Stack
+## 12. Tech Stack
 	•	Solidity (IntentEscrow)
 	•	Base (deployment chain)
 	•	React + Tailwind
@@ -213,7 +221,7 @@ This is not:
 
 ⸻
 
-13. Security & Guarantees
+## 13. Security & Guarantees
 
 Guarantees provided:
 	•	Funds cannot move without explicit fulfillment
@@ -225,7 +233,7 @@ Failure is treated as a first-class outcome, not an edge case.
 
 ⸻
 
-14. Future Improvements
+## 14. Future Improvements
 
 Possible extensions:
 	•	Automated fulfillment verification
